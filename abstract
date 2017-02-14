@@ -1,0 +1,10 @@
+A couple of years ago I started down the rabbit hole that is OAuth2 and manged
+to implement a plugin for Mojolicious. Since then I have managed to abstract
+out a lot of the internals and now have a module to support all four OAuth2
+flows, which is de-coupled from any specific web framework.
+
+This talk will cover those four OAuth2 flows, with examples of using the module
+and plugins to implement an OAuth2 authorization server in your framework of
+choice.
+
+Strong coffee is advised as a prerequisite to attending this talk.
