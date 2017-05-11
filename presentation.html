@@ -24,24 +24,61 @@ class: center, middle
 # OAuth2 is Done
 
 ???
-Il y a quelqun qui ne connaisez pas OAuth2 ?
+Il y a quelqun qui ne connaisez pas OAuth2, ou jamais vu OAuth2 ?
 
 ---
+# OAuth2
 
 .center[![Login With Buttons](img/bootstrap-social.png)]
+
 ---
 # "Done"?
 
 [Net::OAuth2::AuthorizationServer](https://metacpan.org/release/Net-OAuth2-AuthorizationServer)
 
+???
+
+
 ---
-# Authorization Code Grant
+# The RFCs
+
+--
+
+- https://tools.ietf.org/html/rfc6749 - The OAuth 2.0 Authorization Framework, 76 pages
+--
+
+- https://tools.ietf.org/html/rfc6819 - OAuth 2.0 Threat Model and Security Considerations, 71 pages
+
+--
+- https://tools.ietf.org/html/rfc7521 - Assertion Framework for OAuth 2.0, 20 pages
 
 ???
-Outline flow
+C'est compliqué
 
 ---
 # Authorization Code Grant
+
+--
+
+- Very common
+--
+
+- Used by the "Login with" examples you will find on the web
+
+--
+- Generally for browser based clients
+
+--
+- The most secure flow
+
+--
+- Also the most complicated flow
+
+--
+- Somewhat frustrating to implement
+
+--
+- But easier with framework plugins
 
 ???
 Why use it?
@@ -49,8 +86,67 @@ Why use it?
 ---
 # Authorization Code Grant
 
+<pre>
+   +----------+
+   | Resource |
+   |   Owner  |
+   +----------+
+        ^
+        |
+   +----|-----+        Client Identifier     +---------------+
+   |         -+--(A)-- & Redirection URI --->|               |
+   |  User-   |                              | Authorization |
+   |  Agent  -+--(B)-- User authenticates -->|     Server    |
+   |          |                              |               |
+   |         -+--(C)-- Authorization Code --<|               |
+   +-|----|---+                              +---------------+
+     |    |                                      ^      v
+    (A)  (C)                                     |      |
+     |    |                                      |      |
+     ^    v                                      |      |
+   +---------+                                   |      |
+   |         |>-(D)-- Authorization Code --------'      |
+   |  Client |        & Redirection URI                 |
+   |         |                                          |
+   |         |<-(E)----- Access Token ------------------'
+   +---------+       (w/ Optional Refresh Token)
+</pre>
+
 ???
-Code example
+Resource owner - c'est vous
+Authorization Server - c'est Google/Facebook
+Client - c'est 
+
+---
+# Authorization Code Grant
+
+Example of Mojolicious configuration:
+
+```perl
+$self->plugin( 'OAuth2::Server' => {
+	jwt_secret => $jwt_secret
+	clients    => {
+		client_secret => $client_secret,
+		scopes        => {
+			 read_posts   => 1,
+			 post_to_wall => 0,
+		}
+	}
+} );
+```
+
+In the controller:
+
+```perl
+if ( my $oauth_details = $c->oauth( qw/required scopes/ ) ) {
+	... # do something, user_id, client_id, etc, available in $oauth_details
+} else {
+	return $c->render( status => 401, text => 'Unauthorized' );
+}
+```
+
+???
+example de Mojolicious, "required scopes" n'est pas necessaire
 
 ---
 # Implicit Grant
