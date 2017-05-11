@@ -29,15 +29,42 @@ Il y a quelqun qui ne connaisez pas OAuth2, ou jamais vu OAuth2 ?
 ---
 # OAuth2
 
-.center[![Login With Buttons](img/bootstrap-social.png)]
+.middle[.center[![Login With Buttons](img/bootstrap-social.png)]]
 
 ---
 # "Done"?
 
-[Net::OAuth2::AuthorizationServer](https://metacpan.org/release/Net-OAuth2-AuthorizationServer)
+--
+
+### [Net::OAuth2::AuthorizationServer](https://metacpan.org/release/Net-OAuth2-AuthorizationServer)
+--
+
+- Implements all four OAuth2 grant flows
+--
+
+- Base module for use by framework plugins
+--
+
+- Although can be used "as is"
+--
+
+- Works "out of the box" with simple config
+--
+
+- But allows full overrides of all methods
+--
+
+- Comprehensively tested
+--
+
+- Some refactoring and cleanup neessary
+--
+
+- Code reviewed by at least one other person! (needs more eyeballs)
+--
 
 ???
-
+Thanks to Martin Renvoize for the code review
 
 ---
 # The RFCs
@@ -56,32 +83,73 @@ Il y a quelqun qui ne connaisez pas OAuth2, ou jamais vu OAuth2 ?
 C'est compliqué
 
 ---
+# The Flows
+
+--
+
+- Authorization Code Grant
+--
+
+- Implicit Grant
+--
+
+- Resource Owner Password Credentials Grant
+
+--
+- Client Credentials Grant
+
+--
+- Extension Grants
+
+--
+
+4.5.  Extension Grants
+
+   The client uses an extension grant type by specifying the grant type
+   using an absolute URI (defined by the authorization server) as the
+   value of the "grant_type" parameter of the token endpoint, and by
+   adding any additional parameters necessary.
+
+???
+Extension Grants - n'importe quoi grant
+
+So which one do you use and how?
+
+---
 # Authorization Code Grant
 
 --
 
 - Very common
+???
+As we saw: in use by Google, Facebook, et al
 --
 
 - Used by the "Login with" examples you will find on the web
-
+???
+Unless it's OAuth 1
 --
-- Generally for browser based clients
+
+- Generally for browser based clients (i.e. not "apps")
 
 --
 - The most secure flow
 
 --
 - Also the most complicated flow
-
+???
+Somewhat frustrating to implement
 --
-- Somewhat frustrating to implement
 
---
 - But easier with framework plugins
 
+--
+- Security is through a whitelist of know clients + secrets
+
+--
+- Client identifies self through a background POST to get access\_token
 ???
-Why use it?
+Access token is thus not known to user
 
 ---
 # Authorization Code Grant
@@ -114,11 +182,144 @@ Why use it?
 
 ???
 Resource owner - c'est vous
+
 Authorization Server - c'est Google/Facebook
-Client - c'est 
+
+Client - c'est le site web qui a dit "Login with Facebook"
 
 ---
 # Authorization Code Grant
+
+Example of Dancer2 configuration:
+
+```yml
+plugins:
+	"OAuth2::Server":
+		jwt_secret: super_secret_jwt_secret
+		clients:
+			client_identifier:
+				client_secret: super_secret_client_secret
+				scopes:
+					read_posts: 1
+					post_to_wall: 0
+```
+
+In the app:
+
+```perl
+use Dancer2::Plugin::OAuth2::Server;
+ 
+get '/protected' => oauth_scopes 'read_posts' => sub { ... }
+```
+
+---
+# Authorization Code Grant
+
+```perl
+my $ua  = ...
+my $uri = URI->new( '/authorize' );
+$uri->query_param( client_id     => 'client_identifier' );
+$uri->query_param( redirect_uri  => 'http://localhost/callback' );
+$uri->query_param( response_type => 'code' );
+$uri->query_param( scope         => 'read_posts' );
+```
+
+--
+
+
+```perl
+# get an auth code
+my $response = $ua->request( HTTP::Request->new( GET => $uri ) );
+$uri = URI->new( $response->header('location') );
+my $auth_code = $uri->query_param( 'code' );
+```
+
+---
+# Authorization Code Grant
+
+```perl
+# get the access token
+$request = POST '/access_token', Content => [
+	client_id     => 'client_identifier',
+    client_secret => 'super_secret_client_secret',
+    grant_type    => 'authorization_code',
+    code          => $auth_code,
+    redirect_uri  => 'http://localhost/callback'
+];
+
+my $access_token = from_json( $ua->request($request)->content )->{access_token};
+```
+
+--
+
+```perl
+# call API with access token
+$request = HTTP::Request->new( GET => '/protected' );
+$request->header( Authorization => "Bearer $access_token");
+```
+
+---
+# Implicit Grant
+
+--
+
+- Also very common
+--
+
+- Used by the "Login with" examples you will find on apps
+
+--
+- Generally for app (phone) based clients
+
+--
+- Reasonably secure
+
+--
+- Reasonably simple
+
+--
+- Security is through a whitelist of know clients + redirect URIs
+
+--
+- Access token sent back to pre-agreed redirect URI in fragment
+
+--
+- Access token can be known to user
+
+???
+vulnerable to MITM attacks?
+
+---
+# Implicit Grant
+
+<pre>
+   +----------+          Client Identifier     +---------------+
+   |          +----(A)-- & Redirection URI --->|               |
+   |  User-   |                                | Authorization |
+   |  Agent   |                                |     Server    |
+   |          |<---(B)--- Redirection URI ----<|               |
+   |          |          with Access Token     +---------------+
+   |          |            in Fragment
+   |          |                                +---------------+
+   |          |----(C)--- Redirection URI ---->|               |
+   |          |          without Fragment      |     Client    |
+   |          |                                |    Resource   |
+   |     (E)  |<---(D)------- Script ---------<|               |
+   |          |                                +---------------+
+   +-|--------+
+     |    |
+    (A)  (F) Access Token
+     |    |
+     ^    v
+   +---------+
+   |         |
+   |  Client |
+   |         |
+   +---------+
+</pre>
+
+---
+# Implicit Grant
 
 Example of Mojolicious configuration:
 
@@ -126,10 +327,12 @@ Example of Mojolicious configuration:
 $self->plugin( 'OAuth2::Server' => {
 	jwt_secret => $jwt_secret
 	clients    => {
-		client_secret => $client_secret,
-		scopes        => {
-			 read_posts   => 1,
-			 post_to_wall => 0,
+		client_identifier => {
+			redirect_uri => 'https://client/cb',
+			scopes       => {
+				 read_posts   => 1,
+				 post_to_wall => 0,
+			}
 		}
 	}
 } );
@@ -151,11 +354,31 @@ example de Mojolicious, "required scopes" n'est pas necessaire
 ---
 # Implicit Grant
 
----
-# Implicit Grant
+Call server with client and redirect URL:
 
----
-# Implicit Grant
+```
+curl -v 'https://foo.com/oauth/authorize
+	?client_id=client_identifier
+	&redirect_uri=https://client/cb
+	&response_type=token'
+```
+
+Access token sent back to redirect URL in query fragment:
+
+```
+< Location: https://client/cb#access_token=ABCDEFG&token_type=bearer&expires_in=3600
+```
+
+Call the API:
+
+```
+curl -v -H"Authorization: Bearer ABCDEFG" 'https://foo.com/api/v1.0/me' | jq
+
+{
+  ...
+}
+
+```
 
 ---
 # Resource Owner Password Credentials Grant
@@ -176,9 +399,12 @@ example de Mojolicious, "required scopes" n'est pas necessaire
 # Client Credentials Grant
 
 ---
-# Extension Grants
+# Overriding Defaults
 
 ---
+# Questions?
+
+Links to more resources
 
     </textarea>
     <script src="https://remarkjs.com/downloads/remark-latest.min.js" type="text/javascript">
