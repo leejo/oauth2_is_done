@@ -72,6 +72,10 @@ Thanks to Martin Renvoize for the code review
 --
 
 - https://tools.ietf.org/html/rfc6749 - The OAuth 2.0 Authorization Framework, 76 pages
+
+"MAY" x 29
+
+"SHOULD" x 51
 --
 
 - https://tools.ietf.org/html/rfc6819 - OAuth 2.0 Threat Model and Security Considerations, 71 pages
@@ -383,16 +387,151 @@ curl -v -H"Authorization: Bearer ABCDEFG" 'https://foo.com/api/v1.0/me' | jq
 ---
 # Resource Owner Password Credentials Grant
 
----
-# Resource Owner Password Credentials Grant
+--
+
+- Uncommon
+--
+
+- In fact, discouraged unless a last resort
+--
+
+- Certainly don't use outside of private client/server systems
+--
+
+- And only use when there is high trust between client/server
+--
 
 ---
 # Resource Owner Password Credentials Grant
+
+<pre>
+   +----------+
+   | Resource |
+   |  Owner   |
+   |          |
+   +----------+
+        v
+        |    Resource Owner
+       (A) Password Credentials
+        |
+        v
+   +---------+                                +---------------+
+   |         |>-(B)---- Resource Owner ------>|               |
+   |         |        Password Credentials    | Authorization |
+   | Client  |                                |     Server    |
+   |         |<-(C)---- Access Token --------<|               |
+   |         |   (w/ Optional Refresh Token)  |               |
+   +---------+                                +---------------+
+</pre>
+
+---
+# Resource Owner Password Credentials Grant
+
+Example of a simple script as a "server":
+
+```perl
+my $Server = Net::OAuth2::AuthorizationServer->new;
+my $Grant  = $Server->password_grant(
+	jwt_secret => 'weeeeee',
+	clients => {
+		bob => {
+			client_secret => 'foo',
+		},
+	},
+	users => {
+		sue => 'letmein',
+	}
+);
+
+```
+
+???
+in this case the command line would be the client
+
+it's problematic in that we have to give the client our password
+
+which sort of defeats the point of OAuth, although we can limit the scopes
+
+---
+# Resource Owner Password Credentials Grant
+
+```perl
+my ( $is_valid,$error,$scopes ) = $Grant->verify_user_password(
+	client_id     => $opts->{'client-id'}     // '',
+	client_secret => $opts->{'client-secret'} // '',
+	username      => $opts->{'username'}      // '',
+	password      => $opts->{'password'}      // '',
+);
+
+die $error if ! $is_valid;
+
+say $Grant->token(
+	client_id       => $opts->{'client-id'} // '',
+	scopes          => undef,
+	type            => 'access',
+);
+```
+
+--
+
+```sh
+ > perl examples/password_credentials_grant.pl -c bob -s foo -u sue -p letmein
+```
+
+--
+
+```sh
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOm51bGwsImNsaWVudCI6ImJvYiIsIm \
+V4cCI6MTQ5NDY3NTczMSwiaWF0IjoxNDk0NjcyMTMxLCJqdGkiOiIyQUxUZzc2dENnbkl5SlJSc \
+XJhTnRKUExNbk1JaEhwdiIsInNjb3BlcyI6bnVsbCwidHlwZSI6ImFjY2VzcyIsInVzZXJfaWQi \
+Om51bGx9.L-dpho5QTNKtWkm2lQ76ljHufx2onBUJ_6MELs3mMMI
+```
+
+---
+# Resource Owner Password Credentials Grant
+
+```perl
+if ( my $access_token = $opts->{'access-token'} ) {
+
+	my ( $is_valid,$error ) = $Grant->verify_access_token(
+		access_token     => $access_token,
+		is_refresh_token => 0,
+	);
+
+	die $error if ! $is_valid;
+
+	say "Welcome";
+
+}
+```
+
+???
+this could be an entirely different script, process, etc
+
+because the JWT is persistant
+
+if you didn't use jwt\_secret it's more complicated, more on that in a minute
+--
+
+```sh
+ > perl examples/password_credentials_grant.pl -a \
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOm51bGwsImNsaWVudCI6ImJvYiIsIm \
+V4cCI6MTQ5NDY3NTczMSwiaWF0IjoxNDk0NjcyMTMxLCJqdGkiOiIyQUxUZzc2dENnbkl5SlJSc \
+XJhTnRKUExNbk1JaEhwdiIsInNjb3BlcyI6bnVsbCwidHlwZSI6ImFjY2VzcyIsInVzZXJfaWQi \
+Om51bGx9.L-dpho5QTNKtWkm2lQ76ljHufx2onBUJ_6MELs3mMMI
+```
+
+--
+
+```sh
+Welcome
+```
 
 ---
 # Client Credentials Grant
 
 ---
+
 # Client Credentials Grant
 
 ---
@@ -402,9 +541,27 @@ curl -v -H"Authorization: Bearer ABCDEFG" 'https://foo.com/api/v1.0/me' | jq
 # Overriding Defaults
 
 ---
+# Overriding Defaults
+
+---
 # Questions?
 
-Links to more resources
+Links:
+
+Blog Posts/Web Stuff
+
+- [OAuth, An Introduction](https://hueniverse.com/introduction-e10f43314db5)
+- [OAuth 2.0 - The Good, The Bad & The Ugly](https://code.tutsplus.com/articles/oauth-20-the-good-the-bad-the-ugly--net-33216)
+- [OAuth 2.0 - Looking Back and Moving On](https://vimeo.com/52882780)
+
+CPAN
+
+- [Net::OAuth::AuthorizationServer](https://metacpan.org/release/Net-OAuth2-AuthorizationServer)
+- [Mojolicious::Plugin::OAuth2](https://metacpan.org/release/Mojolicious-Plugin-OAuth2)
+- [Mojolicious::Plugin::OAuth2::Server](https://metacpan.org/release/Mojolicious-Plugin-OAuth2-Server)
+- [Dancer2::Plugin::Auth::OAuth](https://metacpan.org/pod/Dancer2::Plugin::Auth::OAuth)
+- [Dancer2::Plugin::OAuth2::Server](https://metacpan.org/pod/Dancer2::Plugin::OAuth2::Server)
+- [CatalystX::OAuth2::Provider](https://metacpan.org/release/CatalystX-OAuth2-Provider)
 
     </textarea>
     <script src="https://remarkjs.com/downloads/remark-latest.min.js" type="text/javascript">
