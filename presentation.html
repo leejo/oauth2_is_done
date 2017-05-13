@@ -530,18 +530,172 @@ Welcome
 ---
 # Client Credentials Grant
 
----
+--
 
+- Also uncommon
+--
+
+- Really only for internal and non public services
+--
+
+- For the most part, why would you even bother with this?
+
+---
 # Client Credentials Grant
 
+<pre>
+   +---------+                                +---------------+
+   |         |                                |               |
+   |         |>-(A)- Client Authentication -->| Authorization |
+   | Client  |                                |     Server    |
+   |         |<-(B)---- Access Token --------<|               |
+   |         |                                |               |
+   +---------+                                +---------------+
+</pre>
+
 ---
 # Client Credentials Grant
+
+Example of a CGI based script:
+
+```perl
+use strict;
+use warnings;
+
+use Net::OAuth2::AuthorizationServer;
+use CGI;
+
+my $Server = Net::OAuth2::AuthorizationServer->new;
+my $Grant  = $Server->client_credentials_grant(
+	jwt_secret => 'weeeeee',
+	clients => {
+		bob => {
+			client_secret => 'foo',
+		},
+	}
+);
+```
+
+???
+Please don't use CGI
+---
+# Client Credentials Grant
+
+```perl
+my $query = CGI->new;
+
+my $client_id     = $query->param( 'client-id' )     // '';
+my $client_secret = $query->param( 'client-secret' ) // '';
+
+my ( $is_valid,$error,$scopes ) = $Grant->verify_client(
+	client_id     => $client_id,
+	client_secret => $client_secret,
+);
+
+print $query->header('application/json');
+print "\"$error\"" if ! $is_valid;
+exit( 1 )          if ! $is_valid;
+
+print '{ "access_token":"' . $Grant->token(
+	client_id       => $client_id,
+	scopes          => undef,
+	type            => 'access',
+) . '" }';
+```
+
+---
+# Client Credentials Grant
+
+```perl
+if ( my $access_token = $query->param( 'access-token' ) ) {
+
+	my ( $is_valid,$error ) = $Grant->verify_access_token(
+		access_token     => $access_token,
+		is_refresh_token => 0,
+	);
+
+	print $query->header;
+	print $error if ! $is_valid;
+	exit( 1 )    if ! $is_valid;
+
+	print "Welcome";
+
+} else {
+...
+}
+```
+
+---
+# Client Credentials Grant
+
+```sh
+> curl http://127.0.0.1:3000/token -d "client-id=bob" -d "client-secret=foo"
+```
+
+--
+
+```sh
+{ "access_token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOm51bGwsImNsa \
+WVudCI6ImJvYiIsImV4cCI6MTQ5NDcxMTkwNSwiaWF0IjoxNDk0NzA4MzA1LCJqdGkiOiJ5UnRZe \
+FA3enAyaFVtVXVnNHk2RzlSUm0xWURWV1FFViIsInNjb3BlcyI6bnVsbCwidHlwZSI6ImFjY2Vzc \
+yIsInVzZXJfaWQiOm51bGx9.1aKd8YxIz1uVCaO4ZT-JHCJdjyh6RLm1V8A8tYP-hN8" }
+```
+
+--
+
+```sh
+> curl -v http://127.0.0.1:3000/token -d "access-token=eyJhbGciOiJIUzI1NiIs \
+InR5cCI6IkpXVCJ9.eyJhdWQiOm51bGwsImNsaWVudCI6ImJvYiIsImV4cCI6MTQ5NDcxMTkwNS \
+wiaWF0IjoxNDk0NzA4MzA1LCJqdGkiOiJ5UnRZeFA3enAyaFVtVXVnNHk2RzlSUm0xWURWV1FFV \
+iIsInNjb3BlcyI6bnVsbCwidHlwZSI6ImFjY2VzcyIsInVzZXJfaWQiOm51bGx9.1aKd8YxIz1u \
+VCaO4ZT-JHCJdjyh6RLm1V8A8tYP-hN8"
+```
+
+--
+```sh
+Welcome
+```
 
 ---
 # Overriding Defaults
 
 ---
 # Overriding Defaults
+
+```perl
+my $store_access_token_sub = sub {
+  my ( %args ) = @_;
+
+  my (
+    $obj,$client,$auth_code,$access_token,$refresh_token,
+    $expires_in,$scope,$old_refresh_token
+  ) = @args{qw/
+    mojo_controller client_id auth_code access_token
+    refresh_token expires_in scopes old_refresh_token
+  / };
+
+  ...
+};
+```
+???
+If you want to be more bespoke, store tokens, etc, you can override defaults
+
+For example if you want to store the access token somewhere...
+
+Supply callbacks to override the particular part of the flow you need to
+
+Be aware that different flows only have some parts of the flow
+
+--
+```sh
+verify_client_cb
+login_resource_owner_cb
+confirm_by_resource_owner_cb
+store_auth_code_cb
+verify_auth_code_cb
+store_access_token_cb
+verify_access_token_cb
+```
 
 ---
 # Questions?
@@ -557,6 +711,7 @@ Blog Posts/Web Stuff
 CPAN
 
 - [Net::OAuth::AuthorizationServer](https://metacpan.org/release/Net-OAuth2-AuthorizationServer)
+- [Net::OAuth2::AuthorizationServer::Manual](https://metacpan.org/release/Net-OAuth2-AuthorizationServer-Manual)
 - [Mojolicious::Plugin::OAuth2](https://metacpan.org/release/Mojolicious-Plugin-OAuth2)
 - [Mojolicious::Plugin::OAuth2::Server](https://metacpan.org/release/Mojolicious-Plugin-OAuth2-Server)
 - [Dancer2::Plugin::Auth::OAuth](https://metacpan.org/pod/Dancer2::Plugin::Auth::OAuth)
