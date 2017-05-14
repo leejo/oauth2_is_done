@@ -24,13 +24,15 @@ class: center, middle
 # OAuth2 is Done
 
 ???
-Il y a quelqun qui ne connaisez pas OAuth2, ou jamais vu OAuth2 ?
+Il y a quelqun qui ne connaisez pas OAuth2, ou a vu jamais OAuth2 ?
 
 ---
 # OAuth2
 
 .middle[.center[![Login With Buttons](img/bootstrap-social.png)]]
 
+???
+Not all services utilise OAuth2, for example twitter use OAuth1 (which we aren't covering here)
 ---
 # "Done"?
 
@@ -54,14 +56,19 @@ Il y a quelqun qui ne connaisez pas OAuth2, ou jamais vu OAuth2 ?
 - But allows full overrides of all methods
 --
 
+- Used by a Mojolicious plugin, and a Dancer2 plugin
+--
+
 - Comprehensively tested
 --
 
-- Some refactoring and cleanup neessary
+- Some refactoring and cleanup necessary (more so in the Dancer2 plugin)
+???
+The Dancer2 plugin was a fork of my Mojolicious plugin before I refactored the guts out into this module
+
 --
 
 - Code reviewed by at least one other person! (needs more eyeballs)
---
 
 ???
 Thanks to Martin Renvoize for the code review
@@ -73,19 +80,26 @@ Thanks to Martin Renvoize for the code review
 
 - https://tools.ietf.org/html/rfc6749 - The OAuth 2.0 Authorization Framework, 76 pages
 
+--
+
 "MAY" x 29
 
 "SHOULD" x 51
+???
+C'est compliqué, n'est pas clair
+
 --
 
 - https://tools.ietf.org/html/rfc6819 - OAuth 2.0 Threat Model and Security Considerations, 71 pages
+
+???
+Presque le même longueur !
 
 --
 - https://tools.ietf.org/html/rfc7521 - Assertion Framework for OAuth 2.0, 20 pages
 
 ???
-C'est compliqué
-
+Je ne sais pas le raison pour ce document
 ---
 # The Flows
 
@@ -102,6 +116,9 @@ C'est compliqué
 --
 - Client Credentials Grant
 
+???
+Il y a quatre, mais aussi ...
+
 --
 - Extension Grants
 
@@ -115,9 +132,9 @@ C'est compliqué
    adding any additional parameters necessary.
 
 ???
-Extension Grants - n'importe quoi grant
+Extension Grants - Le "n'importe quoi" grant
 
-So which one do you use and how?
+Donc, lequel a utiliser et comment ?
 
 ---
 # Authorization Code Grant
@@ -126,7 +143,7 @@ So which one do you use and how?
 
 - Very common
 ???
-As we saw: in use by Google, Facebook, et al
+Comme nous avons vu : utilisé par Google, Facebook, et al
 --
 
 - Used by the "Login with" examples you will find on the web
@@ -556,7 +573,7 @@ Welcome
 ---
 # Client Credentials Grant
 
-Example of a CGI based script:
+Example of a CGI.pm based script:
 
 ```perl
 use strict;
@@ -577,7 +594,7 @@ my $Grant  = $Server->client_credentials_grant(
 ```
 
 ???
-Please don't use CGI
+Please don't use CGI.pm
 ---
 # Client Credentials Grant
 
