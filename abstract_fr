@@ -1,0 +1,12 @@
+Il y a deux ans, comme Alice, j’ai plongé dans le terrier du lapin et ai
+commencé à travailler sur une bibliothèque implémentant OAuth2 pour Mojolicious.
+Aujourd’hui, après beaucoup de temps consacré à généraliser le code, la
+bibliothèque supporte les quatre flux d’OAuth2 et n’est plus liée à un
+framework web particulier.
+
+Cette présentation couvre les quatre processus d’OAuth2, avec des exemples
+d’utilisation du module et de ses plugins pour la mise en place d’un serveur
+d’autorisation OAuth2 dans le framework de votre choix.
+
+Il est fortement conseillé de boire un café bien fort avant d’assister à
+cette présentation.

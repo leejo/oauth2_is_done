@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>OAuth2 : c'est fini</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <style type="text/css">
+      @import url(https://fonts.googleapis.com/css?family=Yanone+Kaffeesatz);
+      @import url(https://fonts.googleapis.com/css?family=Droid+Serif:400,700,400italic);
+      @import url(https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,700,400italic);
+
+      body { font-family: 'Droid Serif'; }
+      pre { font-size: 80%; }
+      h1, h2, h3 {
+        font-family: 'Yanone Kaffeesatz';
+        font-weight: normal;
+      }
+      .remark-code, .remark-inline-code { font-family: 'Ubuntu Mono'; }
+    </style>
+  </head>
+  <body>
+    <textarea id="source">
+
+class: center, middle
+
+# OAuth2 : c'est fini
+
+???
+Il y a quelqu'un qui ne connaissez pas OAuth2, ou a vu jamais OAuth2 ?
+
+---
+# OAuth2
+
+.middle[.center[![Login With Buttons](img/bootstrap-social.png)]]
+
+???
+Mais, pas tout les services utilise OAuth2, par exemple twitter utilise OAuth1
+---
+# « C'est fini » ?
+
+--
+
+### [Net::OAuth2::AuthorizationServer](https://metacpan.org/release/Net-OAuth2-AuthorizationServer)
+--
+
+- Implements all four OAuth2 grant flows
+--
+
+- Base module for use by framework plugins
+--
+
+- Although can be used "as is"
+--
+
+- Works "out of the box" with simple config
+--
+
+- But allows full overrides of all methods
+--
+
+- Used by a Mojolicious plugin, and a Dancer2 plugin
+--
+
+- Comprehensively tested
+--
+
+- Some refactoring and cleanup necessary (more so in the Dancer2 plugin)
+???
+The Dancer2 plugin was a fork of my Mojolicious plugin before I refactored the guts out into this module
+
+--
+
+- Code reviewed by at least one other person! (needs more eyeballs)
+
+???
+Thanks to Martin Renvoize for the code review
+
+---
+# The RFCs
+
+--
+
+- https://tools.ietf.org/html/rfc6749 - The OAuth 2.0 Authorization Framework, 76 pages
+
+--
+
+« MAY » x 29
+
+« SHOULD » x 51
+???
+C'est compliqué, n'est pas clair
+
+--
+
+- https://tools.ietf.org/html/rfc6819 - OAuth 2.0 Threat Model and Security Considerations, 71 pages
+
+???
+Presque le même longueur !
+
+--
+- https://tools.ietf.org/html/rfc7521 - Assertion Framework for OAuth 2.0, 20 pages
+
+???
+Je ne sais pas le raison pour ce document
+---
+# The Flows
+
+--
+
+- Authorization Code Grant
+--
+
+- Implicit Grant
+--
+
+- Resource Owner Password Credentials Grant
+
+--
+- Client Credentials Grant
+
+???
+Il y a quatre, mais aussi ...
+
+--
+- Extension Grants
+
+--
+
+4.5.  Extension Grants
+
+   The client uses an extension grant type by specifying the grant type
+   using an absolute URI (defined by the authorization server) as the
+   value of the "grant_type" parameter of the token endpoint, and by
+   adding any additional parameters necessary.
+
+???
+Extension Grants - Le "n'importe quoi" grant
+
+Donc, lequel a utiliser et comment ?
+
+---
+# Authorization Code Grant
+
+--
+
+- Très populaire
+???
+Comme nous avons vu : utilisé par Google, Facebook, et al
+--
+
+- Utilise par les "Login with" exemples vous trouvez sur le web
+???
+a l'exception de OAuth 1
+--
+
+- Généralement pour clients dans le browser (i.e. pas d'"apps")
+
+--
+- Le plus sûr
+
+--
+- Aussi le plus compliqué :(
+???
+Un pue difficile implémenter
+--
+
+- Mais, plus facile avec les plugins
+
+--
+- Les plus sûr parce s'utilise une liste blanche des clients et leurs secrets
+
+--
+- Client identifies self through a background POST to get access\_token
+???
+le token d'access ne connaissez pas a l'utiliser
+
+---
+# Authorization Code Grant
+
+<pre>
+   +----------+
+   | Resource |
+   |   Owner  |
+   +----------+
+        ^
+        |
+   +----|-----+        Client Identifier     +---------------+
+   |         -+--(A)-- & Redirection URI --->|               |
+   |  User-   |                              | Authorization |
+   |  Agent  -+--(B)-- User authenticates -->|     Server    |
+   |          |                              |               |
+   |         -+--(C)-- Authorization Code --<|               |
+   +-|----|---+                              +---------------+
+     |    |                                      ^      v
+    (A)  (C)                                     |      |
+     |    |                                      |      |
+     ^    v                                      |      |
+   +---------+                                   |      |
+   |         |>-(D)-- Authorization Code --------'      |
+   |  Client |        & Redirection URI                 |
+   |         |                                          |
+   |         |<-(E)----- Access Token ------------------'
+   +---------+       (w/ Optional Refresh Token)
+</pre>
+
+???
+Resource owner - c'est vous
+
+Authorization Server - c'est Google/Facebook
+
+Client - c'est le site web qui a dit "Login with Facebook"
+
+---
+# Authorization Code Grant
+
+Example of Dancer2 configuration:
+
+```yml
+plugins:
+	"OAuth2::Server":
+		jwt_secret: super_secret_jwt_secret
+		clients:
+			client_identifier:
+				client_secret: super_secret_client_secret
+				scopes:
+					read_posts: 1
+					post_to_wall: 0
+```
+
+In the app:
+
+```perl
+use Dancer2::Plugin::OAuth2::Server;
+ 
+get '/protected' => oauth_scopes 'read_posts' => sub { ... }
+```
+
+---
+# Authorization Code Grant
+
+```perl
+my $ua  = ...
+my $uri = URI->new( '/authorize' );
+$uri->query_param( client_id     => 'client_identifier' );
+$uri->query_param( redirect_uri  => 'http://localhost/callback' );
+$uri->query_param( response_type => 'code' );
+$uri->query_param( scope         => 'read_posts' );
+```
+
+--
+
+
+```perl
+# get an auth code
+my $response = $ua->request( HTTP::Request->new( GET => $uri ) );
+$uri = URI->new( $response->header('location') );
+my $auth_code = $uri->query_param( 'code' );
+```
+
+---
+# Authorization Code Grant
+
+```perl
+# get the access token
+$request = POST '/access_token', Content => [
+	client_id     => 'client_identifier',
+    client_secret => 'super_secret_client_secret',
+    grant_type    => 'authorization_code',
+    code          => $auth_code,
+    redirect_uri  => 'http://localhost/callback'
+];
+
+my $access_token = from_json( $ua->request($request)->content )->{access_token};
+```
+
+--
+
+```perl
+# call API with access token
+$request = HTTP::Request->new( GET => '/protected' );
+$request->header( Authorization => "Bearer $access_token");
+```
+
+---
+# Implicit Grant
+
+--
+
+- Also very common
+--
+
+- Used by the "Login with" examples you will find on apps
+
+--
+- Generally for app (phone) based clients
+
+--
+- Reasonably secure
+
+--
+- Reasonably simple
+
+--
+- Security is through a whitelist of know clients + redirect URIs
+
+--
+- Access token sent back to pre-agreed redirect URI in fragment
+
+--
+- Access token can be known to user
+
+???
+vulnerable to MITM attacks?
+
+---
+# Implicit Grant
+
+<pre>
+   +----------+          Client Identifier     +---------------+
+   |          +----(A)-- & Redirection URI --->|               |
+   |  User-   |                                | Authorization |
+   |  Agent   |                                |     Server    |
+   |          |<---(B)--- Redirection URI ----<|               |
+   |          |          with Access Token     +---------------+
+   |          |            in Fragment
+   |          |                                +---------------+
+   |          |----(C)--- Redirection URI ---->|               |
+   |          |          without Fragment      |     Client    |
+   |          |                                |    Resource   |
+   |     (E)  |<---(D)------- Script ---------<|               |
+   |          |                                +---------------+
+   +-|--------+
+     |    |
+    (A)  (F) Access Token
+     |    |
+     ^    v
+   +---------+
+   |         |
+   |  Client |
+   |         |
+   +---------+
+</pre>
+
+---
+# Implicit Grant
+
+Example of Mojolicious configuration:
+
+```perl
+$self->plugin( 'OAuth2::Server' => {
+	jwt_secret => $jwt_secret
+	clients    => {
+		client_identifier => {
+			redirect_uri => 'https://client/cb',
+			scopes       => {
+				 read_posts   => 1,
+				 post_to_wall => 0,
+			}
+		}
+	}
+} );
+```
+
+In the controller:
+
+```perl
+if ( my $oauth_details = $c->oauth( qw/required scopes/ ) ) {
+	... # do something, user_id, client_id, etc, available in $oauth_details
+} else {
+	return $c->render( status => 401, text => 'Unauthorized' );
+}
+```
+
+???
+example de Mojolicious, "required scopes" n'est pas necessaire
+
+---
+# Implicit Grant
+
+Call server with client and redirect URL:
+
+```
+curl -v 'https://foo.com/oauth/authorize
+	?client_id=client_identifier
+	&redirect_uri=https://client/cb
+	&response_type=token'
+```
+
+Access token sent back to redirect URL in query fragment:
+
+```
+< Location: https://client/cb#access_token=ABCDEFG&token_type=bearer&expires_in=3600
+```
+
+Call the API:
+
+```
+curl -v -H"Authorization: Bearer ABCDEFG" 'https://foo.com/api/v1.0/me' | jq
+
+{
+  ...
+}
+
+```
+
+---
+# Resource Owner Password Credentials Grant
+
+--
+
+- Uncommon
+--
+
+- In fact, discouraged unless a last resort
+--
+
+- Certainly don't use outside of private client/server systems
+--
+
+- And only use when there is high trust between client/server
+--
+
+---
+# Resource Owner Password Credentials Grant
+
+<pre>
+   +----------+
+   | Resource |
+   |  Owner   |
+   |          |
+   +----------+
+        v
+        |    Resource Owner
+       (A) Password Credentials
+        |
+        v
+   +---------+                                +---------------+
+   |         |>-(B)---- Resource Owner ------>|               |
+   |         |        Password Credentials    | Authorization |
+   | Client  |                                |     Server    |
+   |         |<-(C)---- Access Token --------<|               |
+   |         |   (w/ Optional Refresh Token)  |               |
+   +---------+                                +---------------+
+</pre>
+
+---
+# Resource Owner Password Credentials Grant
+
+Example of a simple script as a "server":
+
+```perl
+my $Server = Net::OAuth2::AuthorizationServer->new;
+my $Grant  = $Server->password_grant(
+	jwt_secret => 'weeeeee',
+	clients => {
+		bob => {
+			client_secret => 'foo',
+		},
+	},
+	users => {
+		sue => 'letmein',
+	}
+);
+
+```
+
+???
+in this case the command line would be the client
+
+it's problematic in that we have to give the client our password
+
+which sort of defeats the point of OAuth, although we can limit the scopes
+
+---
+# Resource Owner Password Credentials Grant
+
+```perl
+my ( $is_valid,$error,$scopes ) = $Grant->verify_user_password(
+	client_id     => $opts->{'client-id'}     // '',
+	client_secret => $opts->{'client-secret'} // '',
+	username      => $opts->{'username'}      // '',
+	password      => $opts->{'password'}      // '',
+);
+
+die $error if ! $is_valid;
+
+say $Grant->token(
+	client_id       => $opts->{'client-id'} // '',
+	scopes          => undef,
+	type            => 'access',
+);
+```
+
+--
+
+```sh
+ > perl examples/password_credentials_grant.pl -c bob -s foo -u sue -p letmein
+```
+
+--
+
+```sh
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOm51bGwsImNsaWVudCI6ImJvYiIsIm \
+V4cCI6MTQ5NDY3NTczMSwiaWF0IjoxNDk0NjcyMTMxLCJqdGkiOiIyQUxUZzc2dENnbkl5SlJSc \
+XJhTnRKUExNbk1JaEhwdiIsInNjb3BlcyI6bnVsbCwidHlwZSI6ImFjY2VzcyIsInVzZXJfaWQi \
+Om51bGx9.L-dpho5QTNKtWkm2lQ76ljHufx2onBUJ_6MELs3mMMI
+```
+
+---
+# Resource Owner Password Credentials Grant
+
+```perl
+if ( my $access_token = $opts->{'access-token'} ) {
+
+	my ( $is_valid,$error ) = $Grant->verify_access_token(
+		access_token     => $access_token,
+		is_refresh_token => 0,
+	);
+
+	die $error if ! $is_valid;
+
+	say "Welcome";
+
+}
+```
+
+???
+this could be an entirely different script, process, etc
+
+because the JWT is persistant
+
+if you didn't use jwt\_secret it's more complicated, more on that in a minute
+--
+
+```sh
+ > perl examples/password_credentials_grant.pl -a \
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOm51bGwsImNsaWVudCI6ImJvYiIsIm \
+V4cCI6MTQ5NDY3NTczMSwiaWF0IjoxNDk0NjcyMTMxLCJqdGkiOiIyQUxUZzc2dENnbkl5SlJSc \
+XJhTnRKUExNbk1JaEhwdiIsInNjb3BlcyI6bnVsbCwidHlwZSI6ImFjY2VzcyIsInVzZXJfaWQi \
+Om51bGx9.L-dpho5QTNKtWkm2lQ76ljHufx2onBUJ_6MELs3mMMI
+```
+
+--
+
+```sh
+Welcome
+```
+
+---
+# Client Credentials Grant
+
+--
+
+- Also uncommon
+--
+
+- Really only for internal and non public services
+--
+
+- For the most part, why would you even bother with this?
+
+---
+# Client Credentials Grant
+
+<pre>
+   +---------+                                +---------------+
+   |         |                                |               |
+   |         |>-(A)- Client Authentication -->| Authorization |
+   | Client  |                                |     Server    |
+   |         |<-(B)---- Access Token --------<|               |
+   |         |                                |               |
+   +---------+                                +---------------+
+</pre>
+
+---
+# Client Credentials Grant
+
+Example of a CGI.pm based script:
+
+```perl
+use strict;
+use warnings;
+
+use Net::OAuth2::AuthorizationServer;
+use CGI;
+
+my $Server = Net::OAuth2::AuthorizationServer->new;
+my $Grant  = $Server->client_credentials_grant(
+	jwt_secret => 'weeeeee',
+	clients => {
+		bob => {
+			client_secret => 'foo',
+		},
+	}
+);
+```
+
+???
+Please don't use CGI.pm
+---
+# Client Credentials Grant
+
+```perl
+my $query = CGI->new;
+
+my $client_id     = $query->param( 'client-id' )     // '';
+my $client_secret = $query->param( 'client-secret' ) // '';
+
+my ( $is_valid,$error,$scopes ) = $Grant->verify_client(
+	client_id     => $client_id,
+	client_secret => $client_secret,
+);
+
+print $query->header('application/json');
+print "\"$error\"" if ! $is_valid;
+exit( 1 )          if ! $is_valid;
+
+print '{ "access_token":"' . $Grant->token(
+	client_id       => $client_id,
+	scopes          => undef,
+	type            => 'access',
+) . '" }';
+```
+
+---
+# Client Credentials Grant
+
+```perl
+if ( my $access_token = $query->param( 'access-token' ) ) {
+
+	my ( $is_valid,$error ) = $Grant->verify_access_token(
+		access_token     => $access_token,
+		is_refresh_token => 0,
+	);
+
+	print $query->header;
+	print $error if ! $is_valid;
+	exit( 1 )    if ! $is_valid;
+
+	print "Welcome";
+
+} else {
+...
+}
+```
+
+---
+# Client Credentials Grant
+
+```sh
+> curl http://127.0.0.1:3000/token -d "client-id=bob" -d "client-secret=foo"
+```
+
+--
+
+```sh
+{ "access_token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOm51bGwsImNsa \
+WVudCI6ImJvYiIsImV4cCI6MTQ5NDcxMTkwNSwiaWF0IjoxNDk0NzA4MzA1LCJqdGkiOiJ5UnRZe \
+FA3enAyaFVtVXVnNHk2RzlSUm0xWURWV1FFViIsInNjb3BlcyI6bnVsbCwidHlwZSI6ImFjY2Vzc \
+yIsInVzZXJfaWQiOm51bGx9.1aKd8YxIz1uVCaO4ZT-JHCJdjyh6RLm1V8A8tYP-hN8" }
+```
+
+--
+
+```sh
+> curl -v http://127.0.0.1:3000/token -d "access-token=eyJhbGciOiJIUzI1NiIs \
+InR5cCI6IkpXVCJ9.eyJhdWQiOm51bGwsImNsaWVudCI6ImJvYiIsImV4cCI6MTQ5NDcxMTkwNS \
+wiaWF0IjoxNDk0NzA4MzA1LCJqdGkiOiJ5UnRZeFA3enAyaFVtVXVnNHk2RzlSUm0xWURWV1FFV \
+iIsInNjb3BlcyI6bnVsbCwidHlwZSI6ImFjY2VzcyIsInVzZXJfaWQiOm51bGx9.1aKd8YxIz1u \
+VCaO4ZT-JHCJdjyh6RLm1V8A8tYP-hN8"
+```
+
+--
+```sh
+Welcome
+```
+
+---
+# Overriding Defaults
+
+---
+# Overriding Defaults
+
+```perl
+my $store_access_token_sub = sub {
+  my ( %args ) = @_;
+
+  my (
+    $obj,$client,$auth_code,$access_token,$refresh_token,
+    $expires_in,$scope,$old_refresh_token
+  ) = @args{qw/
+    mojo_controller client_id auth_code access_token
+    refresh_token expires_in scopes old_refresh_token
+  / };
+
+  ...
+};
+```
+???
+Si vous voulez gardez les tokens, etc, vous pouvez donnez subroutines
+
+Par exemple
+
+C'est possible avec chaque section
+
+Attention ! les processus differentes a des subroutines differentes
+
+--
+```sh
+verify_client_cb
+login_resource_owner_cb
+confirm_by_resource_owner_cb
+store_auth_code_cb
+verify_auth_code_cb
+store_access_token_cb
+verify_access_token_cb
+```
+
+---
+# Questions?
+
+Links:
+
+Blog Posts/Web Stuff
+
+- [OAuth, An Introduction](https://hueniverse.com/introduction-e10f43314db5)
+- [OAuth 2.0 - The Good, The Bad & The Ugly](https://code.tutsplus.com/articles/oauth-20-the-good-the-bad-the-ugly--net-33216)
+- [OAuth 2.0 - Looking Back and Moving On](https://vimeo.com/52882780)
+
+CPAN
+
+- [Net::OAuth::AuthorizationServer](https://metacpan.org/release/Net-OAuth2-AuthorizationServer)
+- [Net::OAuth2::AuthorizationServer::Manual](https://metacpan.org/release/Net-OAuth2-AuthorizationServer-Manual)
+- [Mojolicious::Plugin::OAuth2](https://metacpan.org/release/Mojolicious-Plugin-OAuth2)
+- [Mojolicious::Plugin::OAuth2::Server](https://metacpan.org/release/Mojolicious-Plugin-OAuth2-Server)
+- [Dancer2::Plugin::Auth::OAuth](https://metacpan.org/pod/Dancer2::Plugin::Auth::OAuth)
+- [Dancer2::Plugin::OAuth2::Server](https://metacpan.org/pod/Dancer2::Plugin::OAuth2::Server)
+- [CatalystX::OAuth2::Provider](https://metacpan.org/release/CatalystX-OAuth2-Provider)
+
+    </textarea>
+    <script src="https://remarkjs.com/downloads/remark-latest.min.js" type="text/javascript">
+    </script>
+    <script type="text/javascript">
+      var slideshow = remark.create();
+    </script>
+  </body>
+</html>
