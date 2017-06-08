@@ -42,40 +42,35 @@ Mais, pas tout les services utilise OAuth2, par exemple twitter utilise OAuth1
 ### [Net::OAuth2::AuthorizationServer](https://metacpan.org/release/Net-OAuth2-AuthorizationServer)
 --
 
-- Implements all four OAuth2 grant flows
+- Ce supporte les quatre flux d’OAuth2
 --
 
-- Base module for use by framework plugins
+- Racine for utilisé par autres plugins
 --
 
-- Although can be used "as is"
+- Mais, peut être utilisé tel quel
 --
 
-- Works "out of the box" with simple config
+- Ce fonctionne sans modificatin à l'aide d'une simple configuration
 --
 
-- But allows full overrides of all methods
+- Avoir contrôle complet avec callbacks
 --
 
-- Used by a Mojolicious plugin, and a Dancer2 plugin
+- Utilisé par un plugin pour Mojolicious, et un plugin pour Dancer2 
 --
 
-- Comprehensively tested
+- Beaucoup beaucoup des tests
 --
 
-- Some refactoring and cleanup necessary (more so in the Dancer2 plugin)
+- A besoin d'un peu refactorisation (espécialement le plugin pour Dancer2)
 ???
-The Dancer2 plugin was a fork of my Mojolicious plugin before I refactored the guts out into this module
+Je suis l'auteur de le plugin pour Mojolicious mais pas le plugin pour Dancer2
 
---
-
-- Code reviewed by at least one other person! (needs more eyeballs)
-
-???
-Thanks to Martin Renvoize for the code review
+Le plugin pour Dancer2 été une embranchement de mon plugin avant j'ai le changé
 
 ---
-# The RFCs
+# Les RFCs
 
 --
 
@@ -118,7 +113,7 @@ Je ne sais pas le raison pour ce document
 - Client Credentials Grant
 
 ???
-Il y a quatre, mais aussi ...
+Il y a quatre flux, mais aussi ...
 
 --
 - Extension Grants
@@ -133,7 +128,7 @@ Il y a quatre, mais aussi ...
    adding any additional parameters necessary.
 
 ???
-Extension Grants - Le "n'importe quoi" grant
+Extension Grants - Le « n'importe quoi » grant
 
 Donc, lequel a utiliser et comment ?
 
@@ -147,7 +142,7 @@ Donc, lequel a utiliser et comment ?
 Comme nous avons vu : utilisé par Google, Facebook, et al
 --
 
-- Utilise par les "Login with" exemples vous trouvez sur le web
+- Utilisé par les "Login with" exemples vous trouvez sur le web
 ???
 a l'exception de OAuth 1
 --
@@ -166,12 +161,12 @@ Un pue difficile implémenter
 - Mais, plus facile avec les plugins
 
 --
-- Les plus sûr parce s'utilise une liste blanche des clients et leurs secrets
+- Les plus sûr parce que s'utilise une liste blanche des clients et leurs secrets
 
 --
-- Client identifies self through a background POST to get access\_token
+- Le cliente s'identifie avec un arrière-plan POST à obtenir un token d'accès
 ???
-le token d'access ne connaissez pas a l'utiliser
+le token d'accès ne connaissez pas par les utilises
 
 ---
 # Authorization Code Grant
@@ -212,7 +207,7 @@ Client - c'est le site web qui a dit "Login with Facebook"
 ---
 # Authorization Code Grant
 
-Example of Dancer2 configuration:
+Une exemple de un Dancer2 configuration:
 
 ```yml
 plugins:
@@ -226,7 +221,7 @@ plugins:
 					post_to_wall: 0
 ```
 
-In the app:
+Dans l'app:
 
 ```perl
 use Dancer2::Plugin::OAuth2::Server;
@@ -285,28 +280,28 @@ $request->header( Authorization => "Bearer $access_token");
 
 --
 
-- Also very common
+- Aussi très populaire
 --
 
-- Used by the "Login with" examples you will find on apps
+- Utilisé par les "Login with" exemples vous trouvez dan les *apps*
 
 --
-- Generally for app (phone) based clients
+- Généralement pour les apps (portable, iPad, etc) clients
 
 --
-- Reasonably secure
+- Raisonnablement sûr
 
 --
-- Reasonably simple
+- Raisonnablement simple
 
 --
-- Security is through a whitelist of know clients + redirect URIs
+- Utilise une liste blanche des clients et leurs *redirect* URIs
 
 --
-- Access token sent back to pre-agreed redirect URI in fragment
+- Token d'accès retourne au redirect URI dans un fragment
 
 --
-- Access token can be known to user
+- Donc, token d'accès peut être vue par les utilises
 
 ???
 vulnerable to MITM attacks?
@@ -343,7 +338,7 @@ vulnerable to MITM attacks?
 ---
 # Implicit Grant
 
-Example of Mojolicious configuration:
+Exemple d'une Mojolicious configuration:
 
 ```perl
 $self->plugin( 'OAuth2::Server' => {
@@ -360,7 +355,7 @@ $self->plugin( 'OAuth2::Server' => {
 } );
 ```
 
-In the controller:
+Dans le controller:
 
 ```perl
 if ( my $oauth_details = $c->oauth( qw/required scopes/ ) ) {
@@ -376,7 +371,7 @@ example de Mojolicious, "required scopes" n'est pas necessaire
 ---
 # Implicit Grant
 
-Call server with client and redirect URL:
+Appeler le serveur avec la cliente et le URL de redirect:
 
 ```
 curl -v 'https://foo.com/oauth/authorize
@@ -385,13 +380,13 @@ curl -v 'https://foo.com/oauth/authorize
 	&response_type=token'
 ```
 
-Access token sent back to redirect URL in query fragment:
+Token d'accès retourne au redirect URI dans un fragment
 
 ```
 < Location: https://client/cb#access_token=ABCDEFG&token_type=bearer&expires_in=3600
 ```
 
-Call the API:
+Appeler l'API avec le token d'accès:
 
 ```
 curl -v -H"Authorization: Bearer ABCDEFG" 'https://foo.com/api/v1.0/me' | jq
@@ -407,16 +402,16 @@ curl -v -H"Authorization: Bearer ABCDEFG" 'https://foo.com/api/v1.0/me' | jq
 
 --
 
-- Uncommon
+- Rare
 --
 
-- In fact, discouraged unless a last resort
+- En fait, découragé
 --
 
-- Certainly don't use outside of private client/server systems
+- Certainement n'utilisez jamais a l'extérieur d'une cliente / serveur privé
 --
 
-- And only use when there is high trust between client/server
+- Et seulement quand vous avez haute confiance entre la cliente et le serveur
 --
 
 ---
@@ -445,7 +440,7 @@ curl -v -H"Authorization: Bearer ABCDEFG" 'https://foo.com/api/v1.0/me' | jq
 ---
 # Resource Owner Password Credentials Grant
 
-Example of a simple script as a "server":
+Exemple d'un script simple serveur
 
 ```perl
 my $Server = Net::OAuth2::AuthorizationServer->new;
