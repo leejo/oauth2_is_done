@@ -459,11 +459,12 @@ my $Grant  = $Server->password_grant(
 ```
 
 ???
-in this case the command line would be the client
 
-it's problematic in that we have to give the client our password
+Dans cette exemple la cliente est le command line
 
-which sort of defeats the point of OAuth, although we can limit the scopes
+C'est une problème parce que nous donne la cliente notre password
+
+C'est vaincre le but d'OAuth2 ! Mais, nous pouvons limiter les permissions
 
 ---
 # Resource Owner Password Credentials Grant
@@ -484,6 +485,9 @@ say $Grant->token(
 	type            => 'access',
 );
 ```
+
+???
+Regardez, nous ne stocke pas le token d'accès
 
 --
 
@@ -519,9 +523,11 @@ if ( my $access_token = $opts->{'access-token'} ) {
 ```
 
 ???
-this could be an entirely different script, process, etc
+C'est un complètement différente processus
 
-because the JWT is persistant
+le JWT est persistant et sa contient tous le details necessaire
+
+si vous n'utilisez pas un jwt secret c'est une peu plus complique - plus dans une minute
 
 if you didn't use jwt\_secret it's more complicated, more on that in a minute
 --
@@ -545,13 +551,11 @@ Welcome
 
 --
 
-- Also uncommon
+- Aussi rare
 --
 
-- Really only for internal and non public services
+- Seulement pour services intérieur
 --
-
-- For the most part, why would you even bother with this?
 
 ---
 # Client Credentials Grant
@@ -569,7 +573,7 @@ Welcome
 ---
 # Client Credentials Grant
 
-Example of a CGI.pm based script:
+Une exemple d'un script CGI.pm:
 
 ```perl
 use strict;
@@ -590,7 +594,7 @@ my $Grant  = $Server->client_credentials_grant(
 ```
 
 ???
-Please don't use CGI.pm
+S'il vous plaît, ne utilisez jamais CGI.pm
 ---
 # Client Credentials Grant
 
@@ -606,7 +610,7 @@ my ( $is_valid,$error,$scopes ) = $Grant->verify_client(
 );
 
 print $query->header('application/json');
-print "\"$error\"" if ! $is_valid;
+print "\"$error\"" if ! $is_valid; # JSON
 exit( 1 )          if ! $is_valid;
 
 print '{ "access_token":"' . $Grant->token(
