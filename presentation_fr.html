@@ -25,7 +25,7 @@ class: center, middle
 # OAuth2 : c'est fini
 
 ???
-Il y a quelqu'un qui ne connaissez pas OAuth2, ou a vu jamais OAuth2 ?
+Y a-t-il quelqu’un qui ne connais pas OAuth2 ou n’en a jamais entendu parler ?
 
 ---
 # OAuth2
@@ -33,7 +33,7 @@ Il y a quelqu'un qui ne connaissez pas OAuth2, ou a vu jamais OAuth2 ?
 .middle[.center[![Login With Buttons](img/bootstrap-social.png)]]
 
 ???
-Mais, pas tout les services utilise OAuth2, par exemple twitter utilise OAuth1
+Pas tous les services utilisent OAuth2, par exemple twitter utilise OAuth1
 ---
 # « C'est fini » ?
 
@@ -42,32 +42,38 @@ Mais, pas tout les services utilise OAuth2, par exemple twitter utilise OAuth1
 ### [Net::OAuth2::AuthorizationServer](https://metacpan.org/release/Net-OAuth2-AuthorizationServer)
 --
 
-- Ce supporte les quatre flux d’OAuth2
+- Supporte les quatre flux d’OAuth2
 --
 
-- Racine for utilisé par autres plugins
+- Offre une base pour créer aisément des plugins
 --
 
-- Mais, peut être utilisé tel quel
+- Peut aussi être utilisé tel quel
 --
 
-- Ce fonctionne sans modificatin à l'aide d'une simple configuration
+- Fonctionne sans modification à l'aide d'une simple configuration
 --
 
-- Avoir contrôle complet avec callbacks
+- Offre un contrôle complet à l'aide de callbacks
 --
 
-- Utilisé par un plugin pour Mojolicious, et un plugin pour Dancer2 
+- Fourni Plugins pour Mojolicious et Dancer2
 --
 
 - Beaucoup beaucoup des tests
 --
 
-- A besoin d'un peu refactorisation (espécialement le plugin pour Dancer2)
-???
-Je suis l'auteur de le plugin pour Mojolicious mais pas le plugin pour Dancer2
+- Nécessite d'un peu refactorisation (spécialement pour le plugin Dancer2)
 
-Le plugin pour Dancer2 été une embranchement de mon plugin avant j'ai le changé
+???
+Je suis l'auteur du plugin Mojolicious mais pas de celui pour Dancer2
+
+Le plugin Dancer2 est le résultat d'un fork antérieur à mes derniers changements
+--
+
+- Révision du code par au moins une autre personne 
+???
+Merci à Martin Renvoize pour son travail
 
 ---
 # Les RFCs
@@ -82,22 +88,22 @@ Le plugin pour Dancer2 été une embranchement de mon plugin avant j'ai le chang
 
 « SHOULD » x 51
 ???
-C'est compliqué, n'est pas clair
+C'est compliqué, peu clair
 
 --
 
 - https://tools.ietf.org/html/rfc6819 - OAuth 2.0 Threat Model and Security Considerations, 71 pages
 
 ???
-Presque le même longueur !
+Presque aussi long !
 
 --
 - https://tools.ietf.org/html/rfc7521 - Assertion Framework for OAuth 2.0, 20 pages
 
 ???
-Je ne sais pas le raison pour ce document
+Je ne comprends  pas la raison pour laquelle ce document existe
 ---
-# The Flows
+# Les flux
 
 --
 
@@ -128,9 +134,9 @@ Il y a quatre flux, mais aussi ...
    adding any additional parameters necessary.
 
 ???
-Extension Grants - Le « n'importe quoi » grant
+Extension Grants - Le « n'importe quoi » du grant
 
-Donc, lequel a utiliser et comment ?
+Donc, la question est: lequel utiliser et comment ?
 
 ---
 # Authorization Code Grant
@@ -138,35 +144,40 @@ Donc, lequel a utiliser et comment ?
 --
 
 - Très populaire
+
 ???
-Comme nous avons vu : utilisé par Google, Facebook, et al
+Comme nous l'avons vu, utilisé par Google, Facebook, et al
 --
 
-- Utilisé par les "Login with" exemples vous trouvez sur le web
+- Utilisé par les "Login with" que vous trouvez sur le web
+
 ???
-a l'exception de OAuth 1
+à l'exception de OAuth1
 --
 
-- Généralement pour clients dans le browser (i.e. pas d'"apps")
+- Généralement pour des clients en navigateur internet (pas d'"apps")
 
 --
-- Le plus sûr
+- Le flux le plus sûr
 
 --
 - Aussi le plus compliqué :(
+
 ???
-Un pue difficile implémenter
---
-
-- Mais, plus facile avec les plugins
+Un peu frustrant a mettre en place
 
 --
-- Les plus sûr parce que s'utilise une liste blanche des clients et leurs secrets
+
+- Mais, plus facile avec des plugins
 
 --
-- Le cliente s'identifie avec un arrière-plan POST à obtenir un token d'accès
+- La sécurité est basée sur une liste de clients sûrs et leurs ‘secrets’
+
+--
+- Le client s'identifie grâce à un POST en arrière-plan pour obtenir un token d'accès
+
 ???
-le token d'accès ne connaissez pas par les utilises
+Le token d'accès n'est pas connu de l'utilisateur
 
 ---
 # Authorization Code Grant
@@ -202,12 +213,12 @@ Resource owner - c'est vous
 
 Authorization Server - c'est Google/Facebook
 
-Client - c'est le site web qui a dit "Login with Facebook"
+Client - c'est le site web qui dit "Login with Facebook"
 
 ---
 # Authorization Code Grant
 
-Une exemple de un Dancer2 configuration:
+Un exemple de configuration Dancer2 :
 
 ```yml
 plugins:
@@ -221,7 +232,7 @@ plugins:
 					post_to_wall: 0
 ```
 
-Dans l'app:
+Dans l'app :
 
 ```perl
 use Dancer2::Plugin::OAuth2::Server;
@@ -283,10 +294,10 @@ $request->header( Authorization => "Bearer $access_token");
 - Aussi très populaire
 --
 
-- Utilisé par les "Login with" exemples vous trouvez dan les *apps*
+- Utilisé par les "Login with" trouvés dans les *apps*
 
 --
-- Généralement pour les apps (portable, iPad, etc) clients
+- Généralement utilisé par les apps (portable, iPad, etc)
 
 --
 - Raisonnablement sûr
@@ -295,16 +306,16 @@ $request->header( Authorization => "Bearer $access_token");
 - Raisonnablement simple
 
 --
-- Utilise une liste blanche des clients et leurs *redirect* URIs
+- La sécurité est basée sur une liste de clients sûrs et leurs adresses (URLs) de *redirection*
 
 --
-- Token d'accès retourne au redirect URI dans un fragment
+- Token d'accès retourné par l'adresse de redirection dans un fragment
 
 --
-- Donc, token d'accès peut être vue par les utilises
+- Le token d'accès peut être connu du client
 
 ???
-vulnerable to MITM attacks?
+Vulnérable à des attaques de type "man in the middle" ?
 
 ---
 # Implicit Grant
@@ -338,7 +349,7 @@ vulnerable to MITM attacks?
 ---
 # Implicit Grant
 
-Exemple d'une Mojolicious configuration:
+Exemple d'une configuration Mojolicious :
 
 ```perl
 $self->plugin( 'OAuth2::Server' => {
@@ -355,7 +366,7 @@ $self->plugin( 'OAuth2::Server' => {
 } );
 ```
 
-Dans le controller:
+Dans le contrôleur :
 
 ```perl
 if ( my $oauth_details = $c->oauth( qw/required scopes/ ) ) {
@@ -366,12 +377,12 @@ if ( my $oauth_details = $c->oauth( qw/required scopes/ ) ) {
 ```
 
 ???
-example de Mojolicious, "required scopes" n'est pas necessaire
+example Mojolicious, "required scopes" n'est pas necessaire
 
 ---
 # Implicit Grant
 
-Appeler le serveur avec la cliente et le URL de redirect:
+Contact du serveur avec l'identificateur client et l'URL de redirection :
 
 ```
 curl -v 'https://foo.com/oauth/authorize
@@ -380,13 +391,13 @@ curl -v 'https://foo.com/oauth/authorize
 	&response_type=token'
 ```
 
-Token d'accès retourne au redirect URI dans un fragment
+Token d'accès retourné par l'URL de redirection dans un fragment
 
 ```
 < Location: https://client/cb#access_token=ABCDEFG&token_type=bearer&expires_in=3600
 ```
 
-Appeler l'API avec le token d'accès:
+Utilisation de l'API avec le token d'accès :
 
 ```
 curl -v -H"Authorization: Bearer ABCDEFG" 'https://foo.com/api/v1.0/me' | jq
@@ -405,13 +416,13 @@ curl -v -H"Authorization: Bearer ABCDEFG" 'https://foo.com/api/v1.0/me' | jq
 - Rare
 --
 
-- En fait, découragé
+- En fait, pas recommandé
 --
 
-- Certainement n'utilisez jamais a l'extérieur d'une cliente / serveur privé
+- Ne l'utilisez jamais ailleurs que dans contexte client / serveur privé
 --
 
-- Et seulement quand vous avez haute confiance entre la cliente et le serveur
+- Et uniquement si vous avez une totale confiance dans le client, le serveur et le réseau qui les lies
 --
 
 ---
@@ -440,7 +451,7 @@ curl -v -H"Authorization: Bearer ABCDEFG" 'https://foo.com/api/v1.0/me' | jq
 ---
 # Resource Owner Password Credentials Grant
 
-Exemple d'un script simple serveur
+Exemple d'un script serveur simple
 
 ```perl
 my $Server = Net::OAuth2::AuthorizationServer->new;
@@ -460,11 +471,11 @@ my $Grant  = $Server->password_grant(
 
 ???
 
-Dans cette exemple la cliente est le command line
+Dans cet exemple, le client est la ligne de command
 
-C'est une problème parce que nous donne la cliente notre password
+C'est un problème car nous donnons notre mot de passe au client
 
-C'est vaincre le but d'OAuth2 ! Mais, nous pouvons limiter les permissions
+C'est aller à l'encontre d'OAuth2 ! Mais, il est possible de limiter les permissions
 
 ---
 # Resource Owner Password Credentials Grant
@@ -487,7 +498,7 @@ say $Grant->token(
 ```
 
 ???
-Regardez, nous ne stocke pas le token d'accès
+Observez que le tocken d'accès n'es pas stocké
 
 --
 
@@ -523,13 +534,12 @@ if ( my $access_token = $opts->{'access-token'} ) {
 ```
 
 ???
-C'est un complètement différente processus
+Ceci pourrait être un processus/script complètement différent
 
-le JWT est persistant et sa contient tous le details necessaire
+Le JWT est persistant et contient tous les détails nécessaires
 
-si vous n'utilisez pas un jwt secret c'est une peu plus complique - plus dans une minute
+Si vous n'utilisez pas un JWT secret c'est une peu plus compliqué - j'y reviens dans une minute
 
-if you didn't use jwt\_secret it's more complicated, more on that in a minute
 --
 
 ```sh
@@ -551,11 +561,13 @@ Welcome
 
 --
 
-- Aussi rare
+- Également rare
 --
 
-- Seulement pour services intérieur
+- Seulement pour services internes
 --
+
+- Probablement quelque chose à oublier
 
 ---
 # Client Credentials Grant
@@ -573,7 +585,7 @@ Welcome
 ---
 # Client Credentials Grant
 
-Une exemple d'un script CGI.pm:
+Exemple d'un script CGI.pm:
 
 ```perl
 use strict;
@@ -594,7 +606,7 @@ my $Grant  = $Server->client_credentials_grant(
 ```
 
 ???
-S'il vous plaît, ne utilisez jamais CGI.pm
+S'il vous plaît, n'utilisez jamais CGI.pm
 ---
 # Client Credentials Grant
 
@@ -695,13 +707,9 @@ my $store_access_token_sub = sub {
 };
 ```
 ???
-Si vous voulez gardez les tokens, etc, vous pouvez donnez subroutines
+Si vous voulez faire du sur mesure, sauvegarder les tokens… vous pouvez remplacer les fonctionnalités par défaut 
 
-Par exemple
-
-C'est possible avec chaque section
-
-Attention ! les processus differentes a des subroutines differentes
+Par exemple, si vous désirez stocker les tokens d’accès quelque part, fournir des callbacks pour modifier une partie du flux, vous devez être conscient que tous les flux ne sont pas composés des mêmes parties
 
 --
 ```sh
