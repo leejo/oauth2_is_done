@@ -66,15 +66,16 @@ Pas tous les services utilisent OAuth2, par exemple twitter utilise OAuth1
 --
 
 - Nécessite d'un peu refactorisation (spécialement pour le plugin Dancer2)
+--
+
+- Révision du code par au moins une autre personne 
+--
 
 ???
 Je suis l'auteur du plugin Mojolicious mais pas de celui pour Dancer2
 
 Le plugin Dancer2 est le résultat d'un fork antérieur à mes derniers changements
---
 
-- Révision du code par au moins une autre personne 
-???
 Merci à Martin Renvoize pour son travail
 
 ---
@@ -150,13 +151,11 @@ Donc, la question est: lequel utiliser et comment ?
 ???
 Comme nous l'avons vu, utilisé par Google, Facebook, et al
 --
-
 - Utilisé par les "Login with" que vous trouvez sur le web
 
 ???
 à l'exception de OAuth1
 --
-
 - Généralement pour des clients en navigateur internet (pas d'"apps")
 
 --
@@ -169,7 +168,6 @@ Comme nous l'avons vu, utilisé par Google, Facebook, et al
 Un peu frustrant a mettre en place
 
 --
-
 - Mais, plus facile avec des plugins
 
 --
@@ -314,7 +312,7 @@ $request->header( Authorization => "Bearer $access_token");
 - Token d'accès retourné par l'adresse de redirection dans un fragment
 
 --
-- Le token d'accès peut être connu du client
+- Le token d'accès peut être connu d'utilisateur
 
 ???
 Vulnérable à des attaques de type "man in the middle" ?
@@ -425,7 +423,6 @@ curl -v -H"Authorization: Bearer ABCDEFG" 'https://foo.com/api/v1.0/me' | jq
 --
 
 - Et uniquement si vous avez une totale confiance dans le client, le serveur et le réseau qui les lies
---
 
 ---
 # Resource Owner Password Credentials Grant
