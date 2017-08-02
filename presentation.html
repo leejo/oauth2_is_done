@@ -27,7 +27,16 @@ class: center, middle
 Lee Johnson (LEEJO / leejo / lee@humanstate.com)
 
 ???
-Il y a quelqun qui ne connaisez pas OAuth2, ou a vu jamais OAuth2 ?
+Is there anyone who thinks they've never encountered OAuth2?
+
+---
+
+class: center, middle
+
+# leejo.github.io/code/
+
+???
+Slides available here
 
 ---
 # OAuth2
@@ -89,23 +98,48 @@ Thanks to Martin Renvoize for the code review
 
 "SHOULD" x 51
 ???
-C'est compliqué, n'est pas clair
+Full of ambiguities and inconsistencies, some grant types "MUST" ... while others "SHOULD" ...
+
+Was designed by a committee 
 
 --
 
 - https://tools.ietf.org/html/rfc6819 - OAuth 2.0 Threat Model and Security Considerations, 71 pages
 
 ???
-Presque le même longueur !
+Almost the same length!
+
+--
+- https://tools.ietf.org/html/rfc6750 - The OAuth 2.0 Authorization Framework: Bearer Token Usage, 18 pages
 
 --
 - https://tools.ietf.org/html/rfc7521 - Assertion Framework for OAuth 2.0, 20 pages
 
 ???
-Je ne sais pas le raison pour ce document
+In which the committee decided the framework wasn't over engineered enough so they attempt to generalise OAuth2, leading to...
 
 --
-- https://tools.ietf.org/html/rfc6750 - The OAuth 2.0 Authorization Framework: Bearer Token Usage, 18 pages
+- https://tools.ietf.org/html/rfc7522 - Security Assertion Markup Language (SAML) 2.0 Profile for OAuth 2.0 Client Authentication and Authorization Grants, 15 pages
+- https://tools.ietf.org/html/rfc7523 - JSON Web Token (JWT) Profile for OAuth 2.0 Client Authentication and Authorization Grants, 12 pages
+
+???
+These last three are currently proposed standards (2015)
+
+---
+# The RFCs
+
+https://tools.ietf.org/html/rfc6749#section-1.8
+
+<b>1.8.  Interoperability</b>
+
+   OAuth 2.0 provides a rich authorization framework with well-defined
+   security properties.  However, as a rich and highly extensible
+   framework with many optional components, on its own, this
+   specification is likely to produce a wide range of non-interoperable
+   implementations.
+
+???
+This is from the main RFC and is worth highlighting
 
 ---
 # The Flows
@@ -139,9 +173,9 @@ Il y a quatre, mais aussi ...
    adding any additional parameters necessary.
 
 ???
-Extension Grants - Le "n'importe quoi" grant
+Extension Grants - The "Whatever" Grant
 
-Donc, lequel a utiliser et comment ?
+So, which one to use and how?
 
 ---
 # Authorization Code Grant
@@ -218,7 +252,95 @@ Client - c'est le site web qui a dit "Login with Facebook"
 ---
 # Authorization Code Grant
 
-Example of Dancer2 configuration:
+<pre>
+   +----------+
+   | Resource |
+   |   Owner  |
+   +----------+
+        ^
+        |
+   +----|-----+
+   |          |
+   |  User-   |
+   |  Agent   |
+   |          |
+   |          |
+   +-|--------+
+     |
+    (A)
+     |
+     ^
+   +---------+
+   |         |
+   |  Client |
+   |         |
+   |         |
+   +---------+
+</pre>
+
+---
+# Authorization Code Grant
+
+<pre>
+   +----------+
+   | Resource |
+   |   Owner  |
+   +----------+
+        ^
+        |
+   +----|-----+        Client Identifier     +---------------+
+   |         -+--(A)-- & Redirection URI --->|               |
+   |  User-   |                              | Authorization |
+   |  Agent  -+--(B)-- User authenticates -->|     Server    |
+   |          |                              |               |
+   |         -+--(C)-- Authorization Code --<|               |
+   +-|----|---+                              +---------------+
+     |    |
+    (A)  (C)
+     |    |
+     ^    v
+   +---------+
+   |         |
+   |  Client |
+   |         |
+   |         |
+   +---------+
+</pre>
+
+---
+# Authorization Code Grant
+
+<pre>
+   +----------+
+   | Resource |
+   |   Owner  |
+   +----------+
+        ^
+        |
+   +----|-----+        Client Identifier     +---------------+
+   |         -+--(A)-- & Redirection URI --->|               |
+   |  User-   |                              | Authorization |
+   |  Agent  -+--(B)-- User authenticates -->|     Server    |
+   |          |                              |               |
+   |         -+--(C)-- Authorization Code --<|               |
+   +-|----|---+                              +---------------+
+     |    |                                      ^      v
+    (A)  (C)                                     |      |
+     |    |                                      |      |
+     ^    v                                      |      |
+   +---------+                                   |      |
+   |         |>-(D)-- Authorization Code --------'      |
+   |  Client |        & Redirection URI                 |
+   |         |                                          |
+   |         |<-(E)----- Access Token ------------------'
+   +---------+       (w/ Optional Refresh Token)
+</pre>
+
+---
+
+# Authorization Code Grant
+
+Example of Dancer2 configuration in the Authorization Server app:
 
 ```yml
 plugins:
@@ -232,7 +354,7 @@ plugins:
 					post_to_wall: 0
 ```
 
-In the app:
+Route In the app:
 
 ```perl
 use Dancer2::Plugin::OAuth2::Server;
@@ -240,8 +362,13 @@ use Dancer2::Plugin::OAuth2::Server;
 get '/protected' => oauth_scopes 'read_posts' => sub { ... }
 ```
 
+???
+The plugin creates a couple of routes in your app to allow the OAuth2 flow to function
+
 ---
 # Authorization Code Grant
+
+In the client:
 
 ```perl
 my $ua  = ...
@@ -252,6 +379,9 @@ $uri->query_param( response_type => 'code' );
 $uri->query_param( scope         => 'read_posts' );
 ```
 
+???
+Creating a request to get an authorization code (response_type => 'code')
+
 --
 
 
@@ -261,6 +391,10 @@ my $response = $ua->request( HTTP::Request->new( GET => $uri ) );
 $uri = URI->new( $response->header('location') );
 my $auth_code = $uri->query_param( 'code' );
 ```
+
+???
+What you don't see here is the user login/allow/deny part of the process on
+the Authorization Server side - you need to implement that in your web framework
 
 ---
 # Authorization Code Grant
@@ -278,12 +412,17 @@ $request = POST '/access_token', Content => [
 my $access_token = from_json( $ua->request($request)->content )->{access_token};
 ```
 
+???
+Use the authorization code returned with client_id and client_secret to get an auth code
+
 --
 
 ```perl
 # call API with access token
 $request = HTTP::Request->new( GET => '/protected' );
 $request->header( Authorization => "Bearer $access_token");
+my $response = $ua->request( $request );
+...
 ```
 
 ---
@@ -346,10 +485,49 @@ vulnerable to MITM attacks?
    +---------+
 </pre>
 
+???
+
+For some reason on this diagram they include the "Client Resource"
+
+They didn't do that on the previous grant type, even though it also
+uses a redirect URI. I guess because it looked complicated enough
+already.
+
+Really it looks something like... (next slide)
+
 ---
 # Implicit Grant
 
-Example of Mojolicious configuration:
+<pre>
+   +----------+          Client Identifier     +---------------+
+   |          +----(A)-- & Redirection URI --->|               |
+   |  User-   |                                | Authorization |
+   |  Agent   |                                |     Server    |
+   |          |<---(B)--- Redirection URI ----<|               |
+   |          |          with Access Token     +---------------+
+   |          |            in Fragment
+   |          |
+   |          |
+   |          |
+   |          |
+   |     (E)  |
+   |          |
+   +-|--------+
+     |    |
+    (A)  (C) Access Token
+     |    |
+     ^    v
+   +---------+
+   |         |
+   |  Client |
+   |         |
+   +---------+
+</pre>
+
+---
+# Implicit Grant
+
+Example of Mojolicious configuration, again in the Authorization Server app:
 
 ```perl
 $self->plugin( 'OAuth2::Server' => {
@@ -366,6 +544,12 @@ $self->plugin( 'OAuth2::Server' => {
 } );
 ```
 
+???
+Looks very similar to the previous example but this time we have a redirect_uri rather
+than a client_secret
+
+--
+
 In the controller:
 
 ```perl
@@ -377,14 +561,14 @@ if ( my $oauth_details = $c->oauth( qw/required scopes/ ) ) {
 ```
 
 ???
-example de Mojolicious, "required scopes" n'est pas necessaire
+Note that qw/required scopes/ is only necessary for routes requiring specific scopes ("privileges") to access them
 
 ---
 # Implicit Grant
 
 Call server with client and redirect URL:
 
-```
+```sh
 curl -v 'https://foo.com/oauth/authorize
 	?client_id=client_identifier
 	&redirect_uri=https://client/cb
@@ -393,13 +577,15 @@ curl -v 'https://foo.com/oauth/authorize
 
 Access token sent back to redirect URL in query fragment:
 
+```sh
+Location: https://client/cb#access_token=ABCDEFG&...
 ```
-< Location: https://client/cb#access_token=ABCDEFG&token_type=bearer&expires_in=3600
-```
+
+--
 
 Call the API:
 
-```
+```sh
 curl -v -H"Authorization: Bearer ABCDEFG" 'https://foo.com/api/v1.0/me' | jq
 
 {
@@ -407,6 +593,11 @@ curl -v -H"Authorization: Bearer ABCDEFG" 'https://foo.com/api/v1.0/me' | jq
 }
 
 ```
+
+???
+Examples calling the Authorization Server on the command line here, because why not
+
+This flow is a bit simpler so we can do that trivially here anyway
 
 ---
 # Resource Owner Password Credentials Grant
@@ -470,11 +661,13 @@ my $Grant  = $Server->password_grant(
 ```
 
 ???
-in this case the command line would be the client
+In this case the command line would be the client, running script the server
 
-it's problematic in that we have to give the client our password
+It's problematic in that we have to give the client our password
 
-which sort of defeats the point of OAuth, although we can limit the scopes
+Which sort of defeats the point of OAuth, although we can limit the scopes
+
+Here you're seeing a bit more of the direct calls to the module, used by the previously mentioned plugins
 
 ---
 # Resource Owner Password Credentials Grant
@@ -496,11 +689,18 @@ say $Grant->token(
 );
 ```
 
+???
+You can see it's possible to use the module itself outside of the various web frameworks - you do need to
+be aware of the full flow, although these are documented in each module within the distribution
+
 --
 
 ```sh
  > perl examples/password_credentials_grant.pl -c bob -s foo -u sue -p letmein
 ```
+
+???
+Passing the details from the "client" to the "server"
 
 --
 
@@ -510,6 +710,9 @@ V4cCI6MTQ5NDY3NTczMSwiaWF0IjoxNDk0NjcyMTMxLCJqdGkiOiIyQUxUZzc2dENnbkl5SlJSc \
 XJhTnRKUExNbk1JaEhwdiIsInNjb3BlcyI6bnVsbCwidHlwZSI6ImFjY2VzcyIsInVzZXJfaWQi \
 Om51bGx9.L-dpho5QTNKtWkm2lQ76ljHufx2onBUJ_6MELs3mMMI
 ```
+
+???
+Gives us an Access Token
 
 ---
 # Resource Owner Password Credentials Grant
@@ -530,11 +733,11 @@ if ( my $access_token = $opts->{'access-token'} ) {
 ```
 
 ???
-this could be an entirely different script, process, etc
+The chunk of code that verifies the Access Token
 
-because the JWT is persistant
+This could be an entirely different script, process, etc, because the JWT is persistant
 
-if you didn't use jwt\_secret it's more complicated, more on that in a minute
+If you didn't use jwt\_secret it's more complicated, more on that in a minute
 --
 
 ```sh
@@ -545,11 +748,17 @@ XJhTnRKUExNbk1JaEhwdiIsInNjb3BlcyI6bnVsbCwidHlwZSI6ImFjY2VzcyIsInVzZXJfaWQi \
 Om51bGx9.L-dpho5QTNKtWkm2lQ76ljHufx2onBUJ_6MELs3mMMI
 ```
 
+???
+Pass the access token from the "client" to the "server"
+
 --
 
 ```sh
 Welcome
 ```
+
+???
+And we're in
 
 ---
 # Client Credentials Grant
@@ -601,7 +810,9 @@ my $Grant  = $Server->client_credentials_grant(
 ```
 
 ???
-Please don't use CGI.pm
+Please don't use CGI.pm, just showing here that it is possible to use this with older style perl code
+
+Or even in house bespoke frameworks
 ---
 # Client Credentials Grant
 
@@ -627,6 +838,9 @@ print '{ "access_token":"' . $Grant->token(
 ) . '" }';
 ```
 
+???
+More of the direct calls to the module: verify the client, get a token
+
 ---
 # Client Credentials Grant
 
@@ -649,12 +863,19 @@ if ( my $access_token = $query->param( 'access-token' ) ) {
 }
 ```
 
+???
+And then the Access Token verification section
+
 ---
 # Client Credentials Grant
 
 ```sh
 > curl http://127.0.0.1:3000/token -d "client-id=bob" -d "client-secret=foo"
 ```
+
+???
+Calling the Authorization Server CGI script with the params, note the client_secret
+is in the clear here so as stated this should be private systems only
 
 --
 
@@ -664,6 +885,9 @@ WVudCI6ImJvYiIsImV4cCI6MTQ5NDcxMTkwNSwiaWF0IjoxNDk0NzA4MzA1LCJqdGkiOiJ5UnRZe \
 FA3enAyaFVtVXVnNHk2RzlSUm0xWURWV1FFViIsInNjb3BlcyI6bnVsbCwidHlwZSI6ImFjY2Vzc \
 yIsInVzZXJfaWQiOm51bGx9.1aKd8YxIz1uVCaO4ZT-JHCJdjyh6RLm1V8A8tYP-hN8" }
 ```
+
+???
+Gives us an Access Token
 
 --
 
@@ -675,6 +899,9 @@ iIsInNjb3BlcyI6bnVsbCwidHlwZSI6ImFjY2VzcyIsInVzZXJfaWQiOm51bGx9.1aKd8YxIz1u \
 VCaO4ZT-JHCJdjyh6RLm1V8A8tYP-hN8"
 ```
 
+???
+Which we can use
+
 --
 ```sh
 Welcome
@@ -683,8 +910,10 @@ Welcome
 ---
 # Overriding Defaults
 
----
-# Overriding Defaults
+???
+If you want to be more bespoke, store tokens, etc, you can override defaults
+
+--
 
 ```perl
 my $store_access_token_sub = sub {
@@ -702,24 +931,29 @@ my $store_access_token_sub = sub {
 };
 ```
 ???
-If you want to be more bespoke, store tokens, etc, you can override defaults
-
 For example if you want to store the access token somewhere...
 
-Supply callbacks to override the particular part of the flow you need to
+Supply functions to override the particular part of the flow you need to
 
-Be aware that different flows only have some parts of the flow
+Be aware that different flows only have some parts of the available functions
+
+And that you need to be more familiar with the specifics of each OAuth2 flow
 
 --
 ```sh
-verify_client_cb
-login_resource_owner_cb
 confirm_by_resource_owner_cb
+login_resource_owner_cb
+verify_client_cb
 store_auth_code_cb
 verify_auth_code_cb
+jwt_claims_cb
 store_access_token_cb
 verify_access_token_cb
+verify_user_password_cb
 ```
+
+???
+Note there's a jwt_claims_cb for adding to the default claims in the JWT
 
 ---
 # Questions?
